@@ -1,0 +1,89 @@
+{
+  "finance": [
+    "invoice",
+    "bank_statement",
+    "financial_report",
+    "contract",
+    "receipt",
+    "tax_document",
+    "insurance_document",
+    "loan_document",
+    "credit_card_statement",
+    "investment_statement",
+    "payroll_document",
+    "expense_report",
+    "unknown"
+  ],
+  "legal": [
+    "contract",
+    "legal_brief",
+    "court_filing",
+    "patent_document",
+    "compliance_document",
+    "legal_correspondence",
+    "regulatory_filing",
+    "intellectual_property",
+    "litigation_document",
+    "unknown"
+  ],
+  "healthcare": [
+    "medical_record",
+    "insurance_claim",
+    "prescription",
+    "lab_result",
+    "medical_bill",
+    "patient_form",
+    "discharge_summary",
+    "referral_letter",
+    "medical_certificate",
+    "unknown"
+  ],
+  "real_estate": [
+    "property_deed",
+    "lease_agreement",
+    "property_appraisal",
+    "inspection_report",
+    "mortgage_document",
+    "property_listing",
+    "title_document",
+    "zoning_document",
+    "property_tax_document",
+    "unknown"
+  ],
+  "insurance": [
+    "policy_document",
+    "claim_form",
+    "coverage_summary",
+    "premium_notice",
+    "claim_settlement",
+    "underwriting_document",
+    "risk_assessment",
+    "policy_renewal",
+    "insurance_certificate",
+    "unknown"
+  ],
+  "hr": [
+    "employment_contract",
+    "resume",
+    "job_application",
+    "performance_review",
+    "employee_handbook",
+    "benefits_document",
+    "training_certificate",
+    "disciplinary_action",
+    "termination_letter",
+    "unknown"
+  ],
+  "default": [
+    "invoice",
+    "contract",
+    "report",
+    "statement",
+    "receipt",
+    "form",
+    "certificate",
+    "correspondence",
+    "application",
+    "unknown"
+  ]
+}

@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  document-classifier:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FLASK_ENV=production
+    volumes:
+      - ./files:/app/files:ro  # Mount test files as read-only
+      - ./.env:/app/.env:ro    # Mount .env file explicitly
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/industries"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

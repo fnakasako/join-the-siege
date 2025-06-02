@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation and analysis files
+*.md
+brainstorm-outline.md
+technical_assessment.md
+preprocessing_analysis.md
+metadata_purpose_analysis.md
+llm_agnostic_design.md
+hybrid_design_analysis.md
+updated_llm_integration_example.md
+
+# Test files (will be mounted as volume)
+# files/
+
+# Logs
+*.log
