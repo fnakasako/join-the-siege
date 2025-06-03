@@ -25,6 +25,10 @@ venv/
 env/
 ENV/
 
+# Environment files - CRITICAL: Exclude from Docker builds
+.env
+.env.*
+
 # IDE
 .vscode/
 .idea/
