@@ -35,7 +35,8 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y tesseract-ocr poppler-utils libgl1-mesa-glx
+        sudo apt-get install -y tesseract-ocr poppler-utils libgl1-mesa-glx || true
+        sudo apt-get install -y libgl1-mesa-dev libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 || true
         
     - name: Cache pip dependencies
       uses: actions/cache@v4
