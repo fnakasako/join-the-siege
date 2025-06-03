@@ -6,7 +6,7 @@ import asyncio
 from typing import Dict, Any
 from dotenv import load_dotenv
 from .categories.category_loader import get_categories_for_industry
-from ..multi_provider_llm import multi_provider_llm
+from ..multi_provider_llm import get_multi_provider_llm
 
 # Load environment variables from .env file
 load_dotenv()
@@ -114,7 +114,7 @@ RESPONSE FORMAT (JSON only):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         llm_response = loop.run_until_complete(
-            multi_provider_llm.classify_with_confidence_upgrade(
+            get_multi_provider_llm().classify_with_confidence_upgrade(
                 prompt, 
                 image_data, 
                 confidence_threshold=0.8

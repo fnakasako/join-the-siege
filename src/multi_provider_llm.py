@@ -421,4 +421,12 @@ class MultiProviderLLM:
             }
 
 # Global instance
-multi_provider_llm = MultiProviderLLM()
+# Global instance - will be initialized lazily
+multi_provider_llm = None
+
+def get_multi_provider_llm():
+    """Get or create the global MultiProviderLLM instance"""
+    global multi_provider_llm
+    if multi_provider_llm is None:
+        multi_provider_llm = MultiProviderLLM()
+    return multi_provider_llm
