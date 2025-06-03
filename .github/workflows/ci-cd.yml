@@ -38,7 +38,7 @@ jobs:
         sudo apt-get install -y tesseract-ocr poppler-utils libgl1-mesa-glx
         
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -60,7 +60,7 @@ jobs:
         python test_runner.py --ci
         
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
@@ -198,7 +198,7 @@ jobs:
         python test_runner.py --api-tests --load-tests
         
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: performance-results
         path: test_results/
