@@ -5,10 +5,14 @@ from typing import Dict, Any
 from io import BytesIO
 
 # Minimal Celery configuration - only Redis needed
+# Railway provides REDIS_URL automatically when Redis is added
+redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+print(f"Using Redis URL: {redis_url[:20]}...")
+
 celery_app = Celery(
     'classifier',
-    broker=os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-    backend=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    broker=redis_url,
+    backend=redis_url
 )
 
 # Basic Celery settings
@@ -78,4 +82,3 @@ def get_task_result(task_id: str) -> Dict[str, Any]:
             'state': task.state,
             'task_id': task_id
         }
-
