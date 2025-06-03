@@ -1,0 +1,225 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tesseract-ocr poppler-utils libgl1-mesa-glx
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install numpy==1.24.3
+        pip install -r requirements.txt
+        
+    - name: Run comprehensive tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        REDIS_URL: redis://localhost:6379
+        FLASK_ENV: testing
+      run: |
+        python test_runner.py --ci
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: test_results/
+        
+    - name: Comment test results on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          try {
+            const summary = JSON.parse(fs.readFileSync('test_results/latest_test_summary.json', 'utf8'));
+            const comment = `## 🧪 Test Results
+            
+            | Metric | Value | Status |
+            |--------|-------|--------|
+            | 🎯 Accuracy | ${(summary.accuracy_rate * 100).toFixed(1)}% | ${summary.accuracy_rate >= 0.8 ? '✅' : '❌'} |
+            | ⚡ Avg Latency | ${summary.average_latency_ms.toFixed(0)}ms | ${summary.average_latency_ms <= 10000 ? '✅' : '❌'} |
+            | 🟢 Availability | ${(summary.availability_rate * 100).toFixed(1)}% | ${summary.availability_rate >= 0.95 ? '✅' : '❌'} |
+            | 💰 Total Cost | $${summary.total_cost_usd.toFixed(4)} | ℹ️ |
+            | 🎫 Tokens Used | ${summary.total_tokens_used.toLocaleString()} | ℹ️ |
+            
+            **Overall Status:** ${summary.accuracy_rate >= 0.8 && summary.average_latency_ms <= 10000 && summary.availability_rate >= 0.95 ? '✅ PASSED' : '❌ FAILED'}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('Could not read test summary:', error);
+          }
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run security scan
+      uses: pypa/gh-action-pip-audit@v1.0.8
+      with:
+        inputs: requirements.txt
+        
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: document-classifier:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Test Docker image
+      run: |
+        docker run --rm -d --name test-container -p 5000:5000 \
+          -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+          document-classifier:latest
+        sleep 30
+        curl -f http://localhost:5000/health || exit 1
+        docker stop test-container
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Railway (Staging)
+      uses: railway-app/railway@v1
+      with:
+        command: up --service staging
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        
+    - name: Run staging tests
+      env:
+        STAGING_URL: ${{ secrets.STAGING_URL }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        sleep 60  # Wait for deployment
+        python test_runner.py --api-tests --ci
+        
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Railway (Production)
+      uses: railway-app/railway@v1
+      with:
+        command: up --service production
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        
+    - name: Run production smoke tests
+      env:
+        PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        sleep 60  # Wait for deployment
+        python test_runner.py --api-tests --ci
+        
+    - name: Notify deployment success
+      if: success()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment.id,
+            state: 'success',
+            description: 'Production deployment successful'
+          });
+
+  performance-monitoring:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Run performance monitoring
+      env:
+        PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        python test_runner.py --api-tests --load-tests
+        
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: test_results/

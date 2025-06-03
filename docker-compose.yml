@@ -1,22 +1,48 @@
 version: '3.8'
 
 services:
-  document-classifier:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
     build: .
     ports:
       - "5000:5000"
-    env_file:
-      - .env
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379
       - FLASK_ENV=production
-    volumes:
-      - ./files:/app/files:ro  # Mount test files as read-only
-      - ./.env:/app/.env:ro    # Mount .env file explicitly
+    depends_on:
+      - redis
     restart: unless-stopped
+    command: gunicorn -w 2 -b 0.0.0.0:5000 src.app:app
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/industries"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  worker:
+    build: .
+    command: celery -A src.async_classifier.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src
+
+networks:
+  default:
+    driver: bridge

@@ -5,3 +5,18 @@ venv
 __pycache__
 *.pyc
 .env
+
+# Test results
+test_results/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# pytest cache
+.pytest_cache/

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any
 from werkzeug.datastructures import FileStorage
 from src.classifier.categories.category_loader import get_categories_for_industry
-from src.llm_call import classify_with_llm
+from ..llm_call import classify_with_llm
 from src.classifier.file_type_handling.document_utils import (
     pdf_to_image,
     excel_to_image,

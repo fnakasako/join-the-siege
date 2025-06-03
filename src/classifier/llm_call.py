@@ -2,15 +2,17 @@ from openai import OpenAI
 import base64
 import json
 import os
+import asyncio
 from typing import Dict, Any
 from dotenv import load_dotenv
-from src.classifier.categories.category_loader import get_categories_for_industry
+from .categories.category_loader import get_categories_for_industry
+from ..multi_provider_llm import multi_provider_llm
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Model configuration - can be overridden via environment variable
-DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = "gpt-4o-mini"
 MODEL = os.getenv('OPENAI_MODEL', DEFAULT_MODEL)
 
 # Model cost and capability information (approximate costs per 1K tokens)
@@ -22,18 +24,9 @@ MODEL_INFO = {
 }
 
 print(f"Using model: {MODEL}")
-if MODEL in MODEL_INFO:
-    info = MODEL_INFO[MODEL]
-    print(f"Model info - Input: ${info['cost_input']}/1K tokens, Output: ${info['cost_output']}/1K tokens, Vision: {info['vision']}, Quality: {info['quality']}")
-
-# Initialize OpenAI client with explicit configuration
-api_key = os.getenv('OPENAI_API_KEY')
-print(f"Debug: API key found: {'Yes' if api_key else 'No'}")
-if api_key:
-    print(f"Debug: API key starts with: {api_key[:10]}...")
 
 try:
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
     print("OpenAI client initialized successfully")
 except Exception as e:
     print(f"Warning: OpenAI client initialization failed: {e}")
@@ -95,23 +88,59 @@ CLASSIFICATION CATEGORIES:
 {', '.join(categories)}
 
 INSTRUCTIONS:
-1. Analyze both the visual content and extracted text
-2. Consider all metadata provided
-3. Choose the most appropriate category
-4. Provide confidence level (0.0 to 1.0)
+1. Analyze both the visual content and extracted text carefully
+2. Consider all metadata provided (filename, file type, content)
+3. Look for key indicators:
+   - Bank statements: account numbers, balances, transaction lists, bank logos
+   - Invoices: invoice numbers, billing addresses, line items, totals, "INVOICE" text
+   - Driver's licenses: photo, license number, DOB, state seal, "DRIVER LICENSE" text
+4. Choose the MOST APPROPRIATE category from the list above
+5. Only use 'unknown' if the document truly doesn't match any category
+6. Provide confidence level (0.0 to 1.0) - be generous with confidence if you can identify key features
+7. If unsure between categories, pick the most likely one with moderate confidence
+
+IMPORTANT: Avoid 'unknown' classification unless absolutely necessary. Even partial matches should be classified with lower confidence.
 
 RESPONSE FORMAT (JSON only):
 {{
     "classification": "category_name",
-    "confidence": 0.95,
+    "confidence": 0.95
 }}
 """
     
-    # Call LLM
-    llm_response = call_vision_llm(prompt, image_data)
-    
-    # Parse response
-    return parse_llm_response(llm_response, categories)
+    # Call multi-provider LLM with confidence upgrade and fallback
+    try:
+        # Use async multi-provider with confidence threshold of 0.8
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        llm_response = loop.run_until_complete(
+            multi_provider_llm.classify_with_confidence_upgrade(
+                prompt, 
+                image_data, 
+                confidence_threshold=0.8
+            )
+        )
+        
+        # Validate classification is in allowed categories
+        classification = llm_response.get('classification', 'unknown')
+        if classification not in categories:
+            classification = 'unknown'
+        
+        return {
+            'classification': classification,
+            'confidence': llm_response.get('confidence', 0.0),
+            'provider_used': llm_response.get('provider_used', 'unknown'),
+            'upgraded': llm_response.get('upgraded', False),
+            'is_backup': llm_response.get('is_backup', False),
+            'model': llm_response.get('model', 'unknown'),
+            'usage': llm_response.get('usage', {})
+        }
+        
+    except Exception as e:
+        # Fallback to original single-provider method
+        print(f"Multi-provider LLM failed, falling back to original method: {e}")
+        llm_response = call_vision_llm(prompt, image_data)
+        return parse_llm_response(llm_response, categories)
 
 def call_vision_llm(prompt: str, image_data: bytes) -> Dict[str, Any]:
     """
@@ -222,7 +251,6 @@ def parse_llm_response(llm_response: Dict[str, Any], valid_categories: list) -> 
         return {
             'classification': classification,
             'confidence': float(result.get('confidence', 0.0)),
-            'reasoning': result.get('reasoning', 'No reasoning provided')
         }
         
     except json.JSONDecodeError as e:

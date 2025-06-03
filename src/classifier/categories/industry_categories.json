@@ -12,7 +12,8 @@
     "investment_statement",
     "payroll_document",
     "expense_report",
-    "unknown"
+    "unknown",
+    "drivers_license"
   ],
   "legal": [
     "contract",
