@@ -144,7 +144,7 @@ jobs:
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
-        railway up
+        railway up --service web
         
     - name: Run production smoke tests
       env:
