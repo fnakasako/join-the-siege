@@ -136,12 +136,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Install Railway CLI
+      run: |
+        npm install -g @railway/cli
+        
     - name: Deploy to Railway (Production)
-      uses: railway-app/railway@v1
-      with:
-        command: up
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        railway up
         
     - name: Run production smoke tests
       env:
