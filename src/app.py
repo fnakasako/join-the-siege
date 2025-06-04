@@ -27,9 +27,9 @@ ALLOWED_EXTENSIONS = {
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/classify_file_async', methods=['POST'])
-def classify_file_async_route():
-    """Async classification endpoint"""
+@app.route('/classify_file', methods=['POST'])
+def classify_file_route():
+    """Classification endpoint - async processing with synchronous API experience"""
     
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
@@ -51,22 +51,43 @@ def classify_file_async_route():
             "error": f"Invalid industry. Available: {available_industries}"
         }), 400
 
-    # Read file data
-    file_data = file.read()
-    
-    # Submit to queue for processing
+    # Submit to async processing but wait for result
     try:
+        # Read file data
+        file_data = file.read()
+        
+        # Submit task to Celery
         task_id = submit_classification_task(file_data, file.filename, industry)
         
+        # Long polling - wait for result with timeout
+        max_wait_time = 120  # 2 minutes max wait
+        poll_interval = 1    # Check every 1 second
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait_time:
+            result = get_task_result(task_id)
+            
+            if result['status'] == 'completed':
+                return jsonify(result['result']), 200
+            elif result['status'] == 'failed':
+                return jsonify({
+                    "error": f"Classification failed: {result.get('error', 'Unknown error')}"
+                }), 500
+            
+            # Still processing, wait a bit
+            time.sleep(poll_interval)
+        
+        # Timeout - return task info for manual polling if needed
         return jsonify({
+            "error": "Processing timeout - task is still running",
             "task_id": task_id,
-            "status": "processing",
-            "estimated_time": "30-60 seconds",
-            "check_url": f"/classification_result/{task_id}"
+            "check_url": f"/classification_result/{task_id}",
+            "message": "You can check the result manually using the provided URL"
         }), 202
+        
     except Exception as e:
         return jsonify({
-            "error": f"Failed to submit classification task: {str(e)}"
+            "error": f"Classification failed: {str(e)}"
         }), 500
 
 @app.route('/classification_result/<task_id>', methods=['GET'])
