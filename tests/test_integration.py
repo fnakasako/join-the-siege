@@ -3,9 +3,16 @@ Real integration tests using actual files and API endpoints
 Tests the complete system with real documents from the files/ directory
 """
 
-import pytest
+import sys
 import os
 from pathlib import Path
+
+# Add project root to Python path for CI environments
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+import pytest
 from io import BytesIO
 
 from src.app import app
