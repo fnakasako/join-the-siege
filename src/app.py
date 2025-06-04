@@ -68,7 +68,13 @@ def classify_file_route():
             result = get_task_result(task_id)
             
             if result['status'] == 'completed':
-                return jsonify(result['result']), 200
+                # Filter out sensitive metadata before returning
+                filtered_result = {
+                    'classification': result['result'].get('classification'),
+                    'confidence': result['result'].get('confidence'),
+                    'industry': result['result'].get('industry')
+                }
+                return jsonify(filtered_result), 200
             elif result['status'] == 'failed':
                 return jsonify({
                     "error": f"Classification failed: {result.get('error', 'Unknown error')}"
