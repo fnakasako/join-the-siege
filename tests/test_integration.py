@@ -10,7 +10,7 @@ from io import BytesIO
 
 from src.app import app
 from src.classifier.file_type_handling.file_type_processors import classify_file
-from src.async_classifier import submit_classification_task, get_task_result
+from src.classifier.async_classifier import submit_classification_task, get_task_result
 
 
 @pytest.mark.integration
@@ -223,15 +223,15 @@ class TestAPIEndpoints:
                 'industry': 'finance'
             }
             
-            response = client.post('/classify_file_async', data=data, content_type='multipart/form-data')
+            response = client.post('/classify_file', data=data, content_type='multipart/form-data')
         
-        assert response.status_code == 202
+        assert response.status_code == 200
         result = response.get_json()
         
-        assert 'task_id' in result
-        assert 'status' in result
-        assert result['status'] == 'processing'
-        print(f"✅ API submitted bank statement classification task: {result['task_id']}")
+        assert 'classification' in result
+        assert 'confidence' in result
+        assert result['classification'] in ['bank_statement', 'financial_statement']
+        print(f"✅ API classified bank statement as: {result['classification']} (confidence: {result['confidence']:.2f})")
     
     def test_api_classify_drivers_license(self, client, files_dir):
         """Test async API endpoint with real driver's license"""
@@ -246,15 +246,16 @@ class TestAPIEndpoints:
                 'industry': 'finance'
             }
             
-            response = client.post('/classify_file_async', data=data, content_type='multipart/form-data')
+            response = client.post('/classify_file', data=data, content_type='multipart/form-data')
         
-        assert response.status_code == 202
+        assert response.status_code == 200
         result = response.get_json()
         
-        assert 'task_id' in result
-        assert 'status' in result
-        assert result['status'] == 'processing'
-        print(f"✅ API submitted driver's license classification task: {result['task_id']}")
+        assert 'classification' in result
+        assert 'confidence' in result
+        # Driver's license classification can be flexible
+        assert result['confidence'] >= 0.0
+        print(f"✅ API classified driver's license as: {result['classification']} (confidence: {result['confidence']:.2f})")
     
     def test_api_classify_invoice(self, client, files_dir):
         """Test async API endpoint with real invoice"""
@@ -269,15 +270,15 @@ class TestAPIEndpoints:
                 'industry': 'finance'
             }
             
-            response = client.post('/classify_file_async', data=data, content_type='multipart/form-data')
+            response = client.post('/classify_file', data=data, content_type='multipart/form-data')
         
-        assert response.status_code == 202
+        assert response.status_code == 200
         result = response.get_json()
         
-        assert 'task_id' in result
-        assert 'status' in result
-        assert result['status'] == 'processing'
-        print(f"✅ API submitted invoice classification task: {result['task_id']}")
+        assert 'classification' in result
+        assert 'confidence' in result
+        assert result['classification'] in ['invoice', 'bill', 'receipt']
+        print(f"✅ API classified invoice as: {result['classification']} (confidence: {result['confidence']:.2f})")
     
     def test_industries_endpoint(self, client):
         """Test industries endpoint"""

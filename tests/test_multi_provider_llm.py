@@ -7,7 +7,7 @@ import pytest
 import asyncio
 import time
 from unittest.mock import Mock, patch, AsyncMock
-from src.multi_provider_llm import MultiProviderLLM, LLMProvider
+from src.classifier.multi_provider_llm import MultiProviderLLM, LLMProvider
 
 
 @pytest.mark.unit
