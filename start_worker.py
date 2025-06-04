@@ -24,7 +24,7 @@ def main():
         print("Starting Celery worker...")
         cmd = [
             'celery', 
-            '-A', 'src.async_classifier.celery_app', 
+            '-A', 'src.classifier.async_classifier.celery_app', 
             'worker', 
             '--loglevel=info',
             '--concurrency=2'

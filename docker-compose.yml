@@ -33,7 +33,7 @@ services:
 
   worker:
     build: .
-    command: celery -A src.async_classifier.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A src.classifier.async_classifier.celery_app worker --loglevel=info --concurrency=2
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - REDIS_URL=redis://redis:6379

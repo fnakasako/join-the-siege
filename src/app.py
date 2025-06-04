@@ -6,7 +6,7 @@ import time
 from dotenv import load_dotenv
 
 # Import async classifier
-from src.async_classifier import (
+from src.classifier.async_classifier import (
     submit_classification_task,
     get_task_result
 )
@@ -29,7 +29,7 @@ def allowed_file(filename):
 
 @app.route('/classify_file', methods=['POST'])
 def classify_file_route():
-    """Classification endpoint - async processing with synchronous API experience"""
+    """Classification endpoint - async processing with synchronous API"""
     
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
@@ -77,38 +77,12 @@ def classify_file_route():
             # Still processing, wait a bit
             time.sleep(poll_interval)
         
-        # Timeout - return task info for manual polling if needed
-        return jsonify({
-            "error": "Processing timeout - task is still running",
-            "task_id": task_id,
-            "check_url": f"/classification_result/{task_id}",
-            "message": "You can check the result manually using the provided URL"
-        }), 202
         
     except Exception as e:
         return jsonify({
             "error": f"Classification failed: {str(e)}"
         }), 500
 
-@app.route('/classification_result/<task_id>', methods=['GET'])
-def get_classification_result(task_id):
-    """Get async classification result"""
-    
-    try:
-        result = get_task_result(task_id)
-        
-        if result['status'] == 'completed':
-            return jsonify(result), 200
-        elif result['status'] == 'failed':
-            return jsonify(result), 500
-        else:
-            return jsonify(result), 202
-            
-    except Exception as e:
-        return jsonify({
-            "error": f"Failed to get task result: {str(e)}",
-            "task_id": task_id
-        }), 500
 
 @app.route('/industries', methods=['GET'])
 def get_industries():

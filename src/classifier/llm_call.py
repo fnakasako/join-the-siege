@@ -6,7 +6,7 @@ import asyncio
 from typing import Dict, Any
 from dotenv import load_dotenv
 from .categories.category_loader import get_categories_for_industry
-from ..multi_provider_llm import get_multi_provider_llm
+from .multi_provider_llm import get_multi_provider_llm
 
 # Load environment variables from .env file
 load_dotenv()
@@ -90,10 +90,10 @@ CLASSIFICATION CATEGORIES:
 INSTRUCTIONS:
 1. Analyze both the visual content and extracted text carefully
 2. Consider all metadata provided (filename, file type, content)
-3. Look for key indicators:
+3. Look for key indicators, for example:
+   - Receipts: store names, dates, itemized lists, totals, "RECEIPT" text
    - Bank statements: account numbers, balances, transaction lists, bank logos
    - Invoices: invoice numbers, billing addresses, line items, totals, "INVOICE" text
-   - Driver's licenses: photo, license number, DOB, state seal, "DRIVER LICENSE" text
 4. Choose the MOST APPROPRIATE category from the list above
 5. Only use 'unknown' if the document truly doesn't match any category
 6. Provide confidence level (0.0 to 1.0) - be generous with confidence if you can identify key features
@@ -129,11 +129,6 @@ RESPONSE FORMAT (JSON only):
         return {
             'classification': classification,
             'confidence': llm_response.get('confidence', 0.0),
-            'provider_used': llm_response.get('provider_used', 'unknown'),
-            'upgraded': llm_response.get('upgraded', False),
-            'is_backup': llm_response.get('is_backup', False),
-            'model': llm_response.get('model', 'unknown'),
-            'usage': llm_response.get('usage', {})
         }
         
     except Exception as e:
@@ -201,8 +196,6 @@ def call_vision_llm(prompt: str, image_data: bytes) -> Dict[str, Any]:
         return {
             'success': True,
             'content': response.choices[0].message.content,
-            'model': response.model,
-            'usage': response.usage.model_dump() if hasattr(response.usage, 'model_dump') else dict(response.usage)
         }
         
     except Exception as e:
